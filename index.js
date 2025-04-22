@@ -1,8 +1,8 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
-import 'dotenv/config';
-import cookieParser from 'cookie-parser'; // Import cookie-parser
+import 'dotenv/config'; // This is fine for local, Railway handles env vars differently
+import cookieParser from 'cookie-parser';
 
 import CategoriesController from './controllers/CategoriesController.js';
 import BudgetsController from './controllers/BudgetsController.js';
@@ -14,15 +14,15 @@ const app = express();
 app.use(bodyParser.json());
 
 const corsOptions = {
-    origin: process.env.FRONTEND_URL,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
+  origin: process.env.FRONTEND_URL, // Railway will provide this env var
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
 };
 app.use(cors(corsOptions));
 
-// Use cookie-parser middleware
 app.use(cookieParser());
 
+// Use Railway's PORT environment variable, default to 3000 for local
 const PORT = process.env.PORT || 3000;
 
 // API routes
@@ -33,5 +33,5 @@ app.use('/api/budgets', BudgetsController);
 app.use('/api/financialReports', FinancialReportsController);
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
