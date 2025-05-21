@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
-import 'dotenv/config'; // For ES Modules, import config like this
-
+import 'dotenv/config'; 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
