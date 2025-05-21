@@ -1,12 +1,12 @@
 import express from 'express';
 const router = express.Router();
-import authenticateToken from '../middleware/auth.js'; // Added .js extension
+import authenticateToken from '../middleware/auth.js';
 import {
   createCategory,
   getCategories,
   editCategory,
   deleteCategory
-} from '../services/CategoriesServices.js'; // Added .js extension
+} from '../services/CategoriesServices.js';
 
 router.post('/createCategory', authenticateToken, createCategory);
 router.get('/getCategories', authenticateToken, getCategories);

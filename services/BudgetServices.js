@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 const prismaClient = new PrismaClient();
 
-// Helper function for date formatting (add this at the top)
 function formatStoredDateToDisplay(dateString) {
-  const [year, month, day] = dateString.split('/');
+  const [year, month, day] = dateString.split("/");
   return `${day}/${month}/${year}`;
 }
 
@@ -15,10 +14,10 @@ export const createBudget = async (req, res) => {
     return res.status(400).json({ error: "One of the fields is missing!" });
   }
 
-  const [startDay, startMonth, startYear] = startDate.split('/');
+  const [startDay, startMonth, startYear] = startDate.split("/");
   startDate = `${startYear}/${startMonth}/${startDay}`;
 
-  const [endDay, endMonth, endYear] = endDate.split('/');
+  const [endDay, endMonth, endYear] = endDate.split("/");
   endDate = `${endYear}/${endMonth}/${endDay}`;
 
   const lowerCaseCategoryName = categoryName.toLowerCase();
@@ -33,7 +32,7 @@ export const createBudget = async (req, res) => {
         data: { name: lowerCaseCategoryName, userId: userId },
       });
       if (!category) {
-        return res.status(500).json({ error: 'Failed to create new category' });
+        return res.status(500).json({ error: "Failed to create new category" });
       }
     }
 
@@ -47,7 +46,12 @@ export const createBudget = async (req, res) => {
     });
 
     if (isPresent) {
-      return res.status(400).json({ error: 'You cannot create multiple budgets for the same category for the same start/end dates' });
+      return res
+        .status(400)
+        .json({
+          error:
+            "You cannot create multiple budgets for the same category for the same start/end dates",
+        });
     }
 
     const budget = await prismaClient.budget.create({
@@ -63,8 +67,10 @@ export const createBudget = async (req, res) => {
 
     res.status(201).json(budget);
   } catch (error) {
-    console.error('Error creating budget or category:', error);
-    res.status(500).json({ error: "Error creating budget!!", message: error.message });
+    console.error("Error creating budget or category:", error);
+    res
+      .status(500)
+      .json({ error: "Error creating budget!!", message: error.message });
   }
 };
 
@@ -78,11 +84,13 @@ export const deleteBudget = async (req, res) => {
         id: id,
         userId: userId,
       },
-      include: { category: true }, // Include category to access categoryId
+      include: { category: true },
     });
 
     if (!budgetToDelete) {
-      return res.status(404).json({ error: 'Budget not found or does not belong to the user' });
+      return res
+        .status(404)
+        .json({ error: "Budget not found or does not belong to the user" });
     }
 
     await prismaClient.budget.delete({
@@ -100,13 +108,18 @@ export const deleteBudget = async (req, res) => {
           userId: userId, // Ensure the category belongs to the user
         },
       });
-      res.json({ message: 'Budget and associated category deleted successfully' });
+      res.json({
+        message: "Budget and associated category deleted successfully",
+      });
     } else {
-      res.json({ message: 'Budget deleted successfully, but no category information found to delete.' });
+      res.json({
+        message:
+          "Budget deleted successfully, but no category information found to delete.",
+      });
     }
   } catch (error) {
-    console.error('Error deleting budget and/or category:', error);
-    res.status(500).json({ error: 'Error deleting budget and/or category' });
+    console.error("Error deleting budget and/or category:", error);
+    res.status(500).json({ error: "Error deleting budget and/or category" });
   }
 };
 
@@ -116,19 +129,19 @@ export const getBudgetsForUser = async (req, res) => {
   try {
     const budgets = await prismaClient.budget.findMany({
       where: { userId: userId },
-      include: { category: true }
+      include: { category: true },
     });
 
-    const formattedBudgets = budgets.map(budget => ({
+    const formattedBudgets = budgets.map((budget) => ({
       ...budget,
       startDate: formatStoredDateToDisplay(budget.startDate),
-      endDate: formatStoredDateToDisplay(budget.endDate)
+      endDate: formatStoredDateToDisplay(budget.endDate),
     }));
 
     res.json(formattedBudgets);
   } catch (error) {
-    console.error('Error fetching budgets for user:', error);
-    res.status(500).json({ error: 'Error fetching budgets' });
+    console.error("Error fetching budgets for user:", error);
+    res.status(500).json({ error: "Error fetching budgets" });
   }
 };
 
@@ -142,29 +155,34 @@ export const trackBudget = async (req, res) => {
       where: {
         name: lowerCaseCategoryName,
         userId: userId,
-      }
+      },
     });
 
-    if (!category) return res.status(404).json({ error: "Category not found for this user!" });
+    if (!category)
+      return res
+        .status(404)
+        .json({ error: "Category not found for this user!" });
 
     const budgets = await prismaClient.budget.findMany({
       where: {
         categoryId: category.id,
         userId: userId,
       },
-      include: { category: true }
+      include: { category: true },
     });
 
-    const formattedBudgets = budgets.map(budget => ({
+    const formattedBudgets = budgets.map((budget) => ({
       ...budget,
       startDate: formatStoredDateToDisplay(budget.startDate),
-      endDate: formatStoredDateToDisplay(budget.endDate)
+      endDate: formatStoredDateToDisplay(budget.endDate),
     }));
 
     res.json(formattedBudgets);
   } catch (error) {
-    console.error('Error tracking budget:', error);
-    res.status(500).json({ error: 'Error fetching budgets', message: error.message });
+    console.error("Error tracking budget:", error);
+    res
+      .status(500)
+      .json({ error: "Error fetching budgets", message: error.message });
   }
 };
 
@@ -174,19 +192,19 @@ export const getBudgetsForCategory = async (req, res) => {
   try {
     const budgets = await prismaClient.budget.findMany({
       where: { categoryId: categoryId },
-      include: { category: true }
+      include: { category: true },
     });
 
-    const formattedBudgets = budgets.map(budget => ({
+    const formattedBudgets = budgets.map((budget) => ({
       ...budget,
       startDate: formatStoredDateToDisplay(budget.startDate),
-      endDate: formatStoredDateToDisplay(budget.endDate)
+      endDate: formatStoredDateToDisplay(budget.endDate),
     }));
 
     res.json(formattedBudgets);
   } catch (error) {
-    console.error('Error fetching budgets for category:', error);
-    res.status(500).json({ error: 'Error fetching budgets' });
+    console.error("Error fetching budgets for category:", error);
+    res.status(500).json({ error: "Error fetching budgets" });
   }
 };
 
@@ -199,10 +217,10 @@ export const editBudget = async (req, res) => {
     return res.status(400).json({ error: "One of the fields is missing!" });
   }
 
-  const [startDay, startMonth, startYear] = startDate.split('/');
+  const [startDay, startMonth, startYear] = startDate.split("/");
   startDate = `${startYear}/${startMonth}/${startDay}`;
 
-  const [endDay, endMonth, endYear] = endDate.split('/');
+  const [endDay, endMonth, endYear] = endDate.split("/");
   endDate = `${endYear}/${endMonth}/${endDay}`;
 
   const lowerCaseCategoryName = categoryName.toLowerCase();
@@ -212,11 +230,13 @@ export const editBudget = async (req, res) => {
       where: {
         id: id,
         userId: userId,
-      }
+      },
     });
 
     if (!oldBudget) {
-      return res.status(404).json({ error: 'Budget not found or does not belong to the user' });
+      return res
+        .status(404)
+        .json({ error: "Budget not found or does not belong to the user" });
     }
 
     const amountDiff = amount - oldBudget.amount;
@@ -231,7 +251,7 @@ export const editBudget = async (req, res) => {
         data: { name: lowerCaseCategoryName, userId: userId },
       });
       if (!category) {
-        return res.status(500).json({ error: 'Failed to create new category' });
+        return res.status(500).json({ error: "Failed to create new category" });
       }
     }
     const categoryId = category.id;
@@ -249,7 +269,12 @@ export const editBudget = async (req, res) => {
     });
 
     if (isPresent) {
-      return res.status(400).json({ error: 'You cannot create multiple budgets for the same category for the same start/end dates' });
+      return res
+        .status(400)
+        .json({
+          error:
+            "You cannot create multiple budgets for the same category for the same start/end dates",
+        });
     }
 
     const updatedBudget = await prismaClient.budget.update({
@@ -260,17 +285,15 @@ export const editBudget = async (req, res) => {
     const response = {
       ...updatedBudget,
       startDate: formatStoredDateToDisplay(updatedBudget.startDate),
-      endDate: formatStoredDateToDisplay(updatedBudget.endDate)
+      endDate: formatStoredDateToDisplay(updatedBudget.endDate),
     };
 
     res.json(response);
   } catch (error) {
-    console.error('Error updating budget:', error);
-    res.status(500).json({ error: 'Error updating budget' });
+    console.error("Error updating budget:", error);
+    res.status(500).json({ error: "Error updating budget" });
   }
 };
-
-
 
 export const resetBudgetSpendingForUser = async (req, res) => {
   const { userId } = req.params;
@@ -287,10 +310,9 @@ export const resetBudgetSpendingForUser = async (req, res) => {
       });
     }
 
-    res.status(200).json({ message: 'Budget spending reset successfully.' });
+    res.status(200).json({ message: "Budget spending reset successfully." });
   } catch (error) {
-    console.error('Error resetting budget spending:', error);
-    res.status(500).json({ error: 'Failed to reset budget spending.' });
+    console.error("Error resetting budget spending:", error);
+    res.status(500).json({ error: "Failed to reset budget spending." });
   }
 };
-
