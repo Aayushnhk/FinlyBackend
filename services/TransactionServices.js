@@ -15,9 +15,7 @@ export const createTransaction = async (req, res) => {
 
   if (type === "expense") {
     if (!data.categoryId) {
-      return res
-        .status(400)
-        .json({ error: "Category is required for expenses" });
+      return res.status(400).json({ error: "Category is required for expenses" });
     }
     const category = await prismaClient.category.findUnique({
       where: { id: data.categoryId },
@@ -30,9 +28,7 @@ export const createTransaction = async (req, res) => {
 
     const currentBalance = await calculateUserBalance(userId);
     if (currentBalance - parseFloat(amount) < 0) {
-      return res
-        .status(400)
-        .json({ error: "Insufficient balance to add this expense." });
+      return res.status(400).json({ error: "Insufficient balance to add this expense." });
     }
   } else if (type === "income") {
     if (!data.incomeSourceName) {
@@ -44,12 +40,9 @@ export const createTransaction = async (req, res) => {
   }
 
   try {
-    var currentDate = new Date();
-    var formattedDate = `${currentDate.getFullYear()}/${(
-      currentDate.getMonth() + 1
-    )
-      .toString()
-      .padStart(2, "0")}/${currentDate.getDate().toString().padStart(2, "0")}`;
+    const formattedDate = data.date
+      ? new Date(data.date).toISOString().split("T")[0].replace(/-/g, "/")
+      : new Date().toISOString().split("T")[0].replace(/-/g, "/");
 
     const transactionData = {
       amount,
@@ -60,6 +53,7 @@ export const createTransaction = async (req, res) => {
       categoryId: categoryId,
     };
 
+    // Update budget if one exists for this category — but don't require it
     if (type === "expense" && categoryId) {
       const budgets = await prismaClient.budget.findMany({
         where: {
@@ -71,7 +65,6 @@ export const createTransaction = async (req, res) => {
       });
 
       let remainingAmount = amount;
-      let budgetUpdated = false;
 
       for (const budget of budgets) {
         if (budget.leftAmount >= remainingAmount) {
@@ -79,19 +72,10 @@ export const createTransaction = async (req, res) => {
             where: { id: budget.id },
             data: { leftAmount: { decrement: remainingAmount } },
           });
-          budgetUpdated = true;
           break;
         }
       }
-
-      if (!budgetUpdated) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "You are going over-budget or no sufficient budget found for this expense.",
-          });
-      }
+      // No budget required — expense is always allowed
     }
 
     const transaction = await prismaClient.transaction.create({
@@ -101,13 +85,10 @@ export const createTransaction = async (req, res) => {
     res.status(201).json(transaction);
   } catch (error) {
     console.error("Error creating transaction:", error);
-    res
-      .status(500)
-      .json({ error: "Error creating transaction", message: error.message });
+    res.status(500).json({ error: "Error creating transaction", message: error.message });
   }
 };
 
-// Helper function to calculate user balance
 const calculateUserBalance = async (userId) => {
   const incomeTransactions = await prismaClient.transaction.findMany({
     where: { userId, type: "income" },
@@ -120,12 +101,10 @@ const calculateUserBalance = async (userId) => {
   });
 
   const totalIncome = incomeTransactions.reduce(
-    (sum, transaction) => sum + parseFloat(transaction.amount),
-    0
+    (sum, transaction) => sum + parseFloat(transaction.amount), 0
   );
   const totalExpenses = expenseTransactions.reduce(
-    (sum, transaction) => sum + parseFloat(transaction.amount),
-    0
+    (sum, transaction) => sum + parseFloat(transaction.amount), 0
   );
 
   return totalIncome - totalExpenses;
@@ -164,10 +143,7 @@ export const getExpenseTransactionsForUser = async (req, res) => {
 
   try {
     const expenses = await prismaClient.transaction.findMany({
-      where: {
-        type: "expense",
-        userId,
-      },
+      where: { type: "expense", userId },
       include: { category: true },
     });
     res.json(expenses);
@@ -194,10 +170,7 @@ export const getIncomeTransactionsForUser = async (req, res) => {
 
   try {
     const incomes = await prismaClient.transaction.findMany({
-      where: {
-        userId,
-        type: "income",
-      },
+      where: { userId, type: "income" },
     });
     res.json(incomes);
   } catch (error) {
@@ -209,14 +182,11 @@ export const getIncomeTransactionsForUser = async (req, res) => {
 export const getTransactionsForCategory = async (req, res) => {
   const categoryName = req.params.categoryName;
   const userId = req.params.userId;
-
   const lowerCaseCategoryName = categoryName.toLowerCase();
 
   try {
     const category = await prismaClient.category.findUnique({
-      where: {
-        name: lowerCaseCategoryName,
-      },
+      where: { name: lowerCaseCategoryName },
     });
 
     if (!category) {
@@ -224,25 +194,20 @@ export const getTransactionsForCategory = async (req, res) => {
     }
 
     const expenses = await prismaClient.transaction.findMany({
-      where: {
-        userId,
-        categoryId: category.id,
-      },
+      where: { userId, categoryId: category.id },
       include: { category: true },
     });
 
     res.json(expenses);
   } catch (error) {
     console.error("Error fetching expenses for this category:", error);
-    res
-      .status(500)
-      .json({ error: "Error fetching expenses for this category" });
+    res.status(500).json({ error: "Error fetching expenses for this category" });
   }
 };
 
 export const editTransaction = async (req, res) => {
   const id = req.params.id;
-  const { amount, type, categoryId, incomeSourceName } = req.body;
+  const { amount, type, categoryId, incomeSourceName, date } = req.body;
   let name = "";
 
   if (!amount || !type) {
@@ -250,20 +215,14 @@ export const editTransaction = async (req, res) => {
   }
 
   if (type === "expense" && !categoryId)
-    return res
-      .status(400)
-      .json({ error: "Category ID is required for type expense" });
+    return res.status(400).json({ error: "Category ID is required for type expense" });
 
   if (type === "income" && !incomeSourceName)
-    return res
-      .status(400)
-      .json({ error: "Income Source is required for type income" });
+    return res.status(400).json({ error: "Income Source is required for type income" });
 
   try {
     const oldTransaction = await prismaClient.transaction.findUnique({
-      where: {
-        id,
-      },
+      where: { id },
     });
 
     if (!oldTransaction) {
@@ -271,17 +230,15 @@ export const editTransaction = async (req, res) => {
     }
 
     if (oldTransaction.type !== type)
-      return res
-        .status(400)
-        .json({
-          error:
-            "You cannot change the transaction type. Delete and create a new transaction instead.",
-        });
+      return res.status(400).json({
+        error: "You cannot change the transaction type. Delete and create a new transaction instead.",
+      });
 
-    const editDataBody = {
-      amount,
-      type,
-    };
+    const editDataBody = { amount, type };
+
+    if (date) {
+      editDataBody.date = new Date(date).toISOString().split("T")[0].replace(/-/g, "/");
+    }
 
     if (type === "expense") {
       const category = await prismaClient.category.findUnique({
@@ -305,20 +262,16 @@ export const editTransaction = async (req, res) => {
     res.json(updatedTransaction);
   } catch (error) {
     console.error("Error updating transaction:", error);
-    res
-      .status(500)
-      .json({ error: "Error updating transaction", message: error.message });
+    res.status(500).json({ error: "Error updating transaction", message: error.message });
   }
 };
 
 export const deleteTransaction = async (req, res) => {
-  const id = req.params.id; // id is now a String (ObjectId)
+  const id = req.params.id;
 
   try {
     const transaction = await prismaClient.transaction.findUnique({
-      where: {
-        id,
-      },
+      where: { id },
     });
 
     if (!transaction) {
@@ -358,7 +311,6 @@ export const resetTransactionsForUser = async (req, res) => {
     await prismaClient.transaction.deleteMany({
       where: { userId },
     });
-
     res.status(200).json({ message: "All transactions deleted successfully." });
   } catch (error) {
     console.error("Error resetting transactions:", error);

@@ -3,36 +3,40 @@ const prismaClient = new PrismaClient();
 
 export const createCategory = async (req, res) => {
   const { name } = req.body;
+  const userId = req.userId;
 
   if (!name) {
-    return res
-      .status(400)
-      .json({ error: "Name is required for creating a category" });
+    return res.status(400).json({ error: "Name is required for creating a category" });
   }
 
   const lowerCaseCategoryName = name.toLowerCase();
 
   try {
+    const existing = await prismaClient.category.findFirst({
+      where: { name: lowerCaseCategoryName, userId },
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: "Category with this name already exists" });
+    }
+
     const category = await prismaClient.category.create({
-      data: { name: lowerCaseCategoryName },
+      data: { name: lowerCaseCategoryName, userId },
     });
     res.status(201).json(category);
   } catch (error) {
-    if (error.code === "P2002" && error.meta?.target?.includes("name")) {
-      return res
-        .status(400)
-        .json({ error: "Category with this name already exists" });
-    }
     console.error("Error creating category:", error);
-    res
-      .status(500)
-      .json({ error: "Error creating category", message: error.message });
+    res.status(500).json({ error: "Error creating category", message: error.message });
   }
 };
 
 export const getCategories = async (req, res) => {
+  const userId = req.userId;
+
   try {
-    const categories = await prismaClient.category.findMany();
+    const categories = await prismaClient.category.findMany({
+      where: { userId },
+    });
     res.json(categories);
   } catch (error) {
     console.error("Error fetching categories:", error);
@@ -45,24 +49,20 @@ export const editCategory = async (req, res) => {
   const { name } = req.body;
 
   if (!name) {
-    return res
-      .status(400)
-      .json({ error: "Name is required for updating a category" });
+    return res.status(400).json({ error: "Name is required for updating a category" });
   }
 
   const lowerCaseCategoryName = name.toLowerCase();
 
   try {
     const updatedCategory = await prismaClient.category.update({
-      where: { id: id },
+      where: { id },
       data: { name: lowerCaseCategoryName },
     });
     res.json(updatedCategory);
   } catch (error) {
     console.error("Error updating category:", error);
-    res
-      .status(500)
-      .json({ error: "Error updating category", message: error.message });
+    res.status(500).json({ error: "Error updating category", message: error.message });
   }
 };
 
@@ -70,7 +70,7 @@ export const deleteCategory = async (req, res) => {
   const { id } = req.params;
 
   try {
-    await prismaClient.category.delete({ where: { id: id } });
+    await prismaClient.category.delete({ where: { id } });
     res.json({ message: "Category deleted successfully" });
   } catch (error) {
     console.error("Error deleting category:", error);
